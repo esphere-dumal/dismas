@@ -10,4 +10,4 @@ metadata:
   name: sleep10
 spec:
   command: "sleep 10 && echo sleeped ten second"
-  args:
+  args: []
