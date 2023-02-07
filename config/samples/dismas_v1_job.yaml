@@ -2,8 +2,8 @@ apiVersion: dismas.dismas.esphe/v1
 kind: Job
 metadata:
   labels:
-    app.kubernetes.io/name: job
-    app.kubernetes.io/instance: job-sample
+    app.kubernetes.io/name: lsjob
+    app.kubernetes.io/instance: lsjob
     app.kubernetes.io/part-of: dismas
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: dismas
