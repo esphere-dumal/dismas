@@ -2,12 +2,12 @@ apiVersion: dismas.dismas.esphe/v1
 kind: Job
 metadata:
   labels:
-    app.kubernetes.io/name: lsjob
-    app.kubernetes.io/instance: lsjob
+    app.kubernetes.io/name: ls_prog
+    app.kubernetes.io/instance: ls_prog
     app.kubernetes.io/part-of: dismas
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: dismas
-  name: lsjob
+  name: lsprog
 spec:
   command: "ls"
   args:

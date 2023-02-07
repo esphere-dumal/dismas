@@ -7,9 +7,9 @@ metadata:
     app.kubernetes.io/part-of: dismas
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: dismas
-  name: random_sleep
+  name: randomsleep
 spec:
   command: "go"
   args:
   - "run"
-  - "randomSleep.go"
+  - "./prog/randomSleep.go"
