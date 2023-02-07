@@ -63,11 +63,13 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	var out strings.Builder
 	cmd.Stdout = &out
 	err := cmd.Run()
+	output := out.String()
 	if err != nil {
 		lg.Error(err, err.Error())
+		lg.Info(err.Error())
+		lg.Info(output)
 		return ctrl.Result{}, err
 	}
-	output := out.String()
 
 	// 3. Update the status
 	podname := "aNameHere"
