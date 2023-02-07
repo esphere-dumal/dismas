@@ -73,9 +73,12 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	// 3. Update the status
 	podname := "aNameHere"
 	job.Status.LatestOutput = output
-	job.Status.LatestError = err.Error()
 	job.Status.Outputs[podname] = output
-	job.Status.Outputs[podname] = err.Error()
+	if err != nil {
+		job.Status.LatestError = err.Error()
+		job.Status.Outputs[podname] = err.Error()
+	}
+
 	for {
 		err := r.Status().Update(ctx, &job)
 		if err == nil {
