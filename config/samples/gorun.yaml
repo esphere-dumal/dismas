@@ -2,13 +2,12 @@ apiVersion: dismas.dismas.esphe/v1
 kind: Job
 metadata:
   labels:
-    app.kubernetes.io/name: ls_prog
-    app.kubernetes.io/instance: ls_prog
+    app.kubernetes.io/name: gorun
+    app.kubernetes.io/instance: gorun
     app.kubernetes.io/part-of: dismas
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: dismas
-  name: lsprog
+  name: gorun
 spec:
-  command: "ls"
-  args:
-  - "-a"
+  command: "./randomSleep"
+  args: []

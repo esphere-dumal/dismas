@@ -23,10 +23,12 @@ COPY internal/controller/ internal/controller/
 # by leaving it empty we can ensure that the container and binary shipped on it will have the same platform.
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o manager cmd/main.go
 
+
 FROM golang:1.20.0-alpine3.16
 WORKDIR /
 COPY --from=builder /workspace/manager .
-COPY prog/randomSleep.go .
+COPY prog/ prog/
+RUN go build -a -o randomSleep prog/randomSleep.go
 USER 65532:65532
 
 ENTRYPOINT ["/manager"]

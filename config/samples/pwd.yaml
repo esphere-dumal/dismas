@@ -1,0 +1,13 @@
+apiVersion: dismas.dismas.esphe/v1
+kind: Job
+metadata:
+  labels:
+    app.kubernetes.io/name: pwd
+    app.kubernetes.io/instance: pwd
+    app.kubernetes.io/part-of: dismas
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: dismas
+  name: pwd
+spec:
+  command: "pwd"
+  args: []
