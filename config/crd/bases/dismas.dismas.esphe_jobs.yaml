@@ -40,7 +40,6 @@ spec:
                   type: string
                 type: array
               command:
-                description: Command is the job to be dispatch
                 type: string
             required:
             - args

@@ -9,5 +9,6 @@ metadata:
     app.kubernetes.io/created-by: dismas
   name: lsjob
 spec:
-  command: ls
-  args: ["-a"]
+  command: "ls"
+  args:
+  - "-a"
