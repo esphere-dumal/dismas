@@ -26,6 +26,7 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o ma
 FROM golang:1.20.0-alpine3.16
 WORKDIR /
 COPY --from=builder /workspace/manager .
+COPY prog/randomSleep.go .
 USER 65532:65532
 
 ENTRYPOINT ["/manager"]
