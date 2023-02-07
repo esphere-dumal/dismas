@@ -58,7 +58,7 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// 2. Exec the object
+	// 2. Exec the command
 	cmd := exec.Command(job.Spec.Command, job.Spec.Args...)
 	var out strings.Builder
 	cmd.Stdout = &out
@@ -72,7 +72,7 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	// 3. Update the status
-	podname := "aNameHere"
+	podname := req.NamespacedName.Name
 
 	if job.Status.Outputs == nil {
 		job.Status.Outputs = make(map[string]string)
@@ -87,6 +87,7 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		job.Status.LatestError = err.Error()
 		job.Status.Outputs[podname] = err.Error()
 	}
+
 	// CAS update status
 	for {
 		err := r.Status().Update(ctx, &job)
