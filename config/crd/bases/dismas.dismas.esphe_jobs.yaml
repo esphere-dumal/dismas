@@ -49,6 +49,14 @@ spec:
           status:
             description: JobStatus defines the observed state of Job
             properties:
+              errors:
+                additionalProperties:
+                  type: string
+                description: Errors record all outputs with key refers to pod, value
+                  refers to output
+                type: object
+              latestError:
+                type: string
               latestOutput:
                 type: string
               outputs:

@@ -28,9 +28,10 @@ type JobSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Command is the job to be dispatch
-	Command string   `json:"command"`
-	Args    []string `json:"args"`
+	// +kubebuilder:validation:Minimun=0
+	Command string `json:"command"`
+	// +kubebuilder:validation:Minimun=0
+	Args []string `json:"args"`
 }
 
 // JobStatus defines the observed state of Job
