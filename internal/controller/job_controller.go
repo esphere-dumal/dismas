@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -72,7 +73,10 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	// 3. Update the status
-	podname := req.NamespacedName.Name
+	podname, exist := os.LookupEnv("MY_POD_NAME")
+	if !exist {
+		podname = "default-pod-name"
+	}
 
 	if job.Status.Outputs == nil {
 		job.Status.Outputs = make(map[string]string)
