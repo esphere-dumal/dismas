@@ -1,0 +1,27 @@
+# permissions for end users to view jobs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: job-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: dismas
+    app.kubernetes.io/part-of: dismas
+    app.kubernetes.io/managed-by: kustomize
+  name: job-viewer-role
+rules:
+- apiGroups:
+  - dismas.dismas.esphe
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - dismas.dismas.esphe
+  resources:
+  - jobs/status
+  verbs:
+  - get

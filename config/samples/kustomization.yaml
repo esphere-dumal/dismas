@@ -1,0 +1,4 @@
+## Append samples of your project ##
+resources:
+- dismas_v1_job.yaml
+#+kubebuilder:scaffold:manifestskustomizesamples
