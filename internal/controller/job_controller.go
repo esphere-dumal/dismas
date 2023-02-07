@@ -63,16 +63,19 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	cmd := exec.Command(job.Spec.Command, job.Spec.Args...)
 	var out strings.Builder
 	cmd.Stdout = &out
-	if err := cmd.Run(); err != nil {
-		lg.Error(err, "Error when execute command "+job.Spec.Command)
+	err := cmd.Run()
+	if err != nil {
+		lg.Error(err, err.Error())
 		return ctrl.Result{}, err
 	}
 	output := out.String()
 
 	// 3. Update the status
-	job.Status.LatestOutput = output
 	podname := "aNameHere"
+	job.Status.LatestOutput = output
+	job.Status.LatestError = err.Error()
 	job.Status.Outputs[podname] = output
+	job.Status.Outputs[podname] = err.Error()
 	for {
 		err := r.Status().Update(ctx, &job)
 		if err == nil {
