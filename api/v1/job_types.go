@@ -29,7 +29,7 @@ type JobSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Command is the job to be dispatch
-	Command string   `json:"job"`
+	Command string   `json:"command"`
 	Args    []string `json:"args"`
 }
 

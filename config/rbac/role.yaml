@@ -1,0 +1,33 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - dismas.dismas.esphe
+  resources:
+  - jobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - dismas.dismas.esphe
+  resources:
+  - jobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - dismas.dismas.esphe
+  resources:
+  - jobs/status
+  verbs:
+  - get
+  - patch
+  - update
