@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	time.Sleep(10 * time.Second)
+	time.Sleep(7 * time.Second)
 	random := rand.Int31()
-	fmt.Println("Sleeped ", random)
+	fmt.Println("Random outputs", random)
 }
