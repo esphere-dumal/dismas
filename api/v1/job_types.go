@@ -29,7 +29,8 @@ type JobSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Command is the job to be dispatch
-	Command string `json:"job"`
+	Command string   `json:"job"`
+	Args    []string `json:"args"`
 }
 
 // JobStatus defines the observed state of Job

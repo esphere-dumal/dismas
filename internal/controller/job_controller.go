@@ -18,7 +18,10 @@ package controller
 
 import (
 	"context"
+	"os/exec"
+	"strings"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,9 +50,38 @@ type JobReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.1/pkg/reconcile
 func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	lg := log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	// 1. Fetch the object
+	var job dismasv1.Job
+	if err := r.Get(ctx, req.NamespacedName, &job); err != nil {
+		lg.Error(err, "Unable to fetch object")
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	// 2. Exec the object
+	cmd := exec.Command(job.Spec.Command, job.Spec.Args...)
+	var out strings.Builder
+	cmd.Stdout = &out
+	if err := cmd.Run(); err != nil {
+		lg.Error(err, "Error when execute command "+job.Spec.Command)
+		return ctrl.Result{}, err
+	}
+	output := out.String()
+
+	// 3. Update the status
+	job.Status.LatestOutput = output
+	podname := "aNameHere"
+	job.Status.Outputs[podname] = output
+	for {
+		err := r.Status().Update(ctx, &job)
+		if err == nil {
+			break
+		} else if !apierrors.IsConflict(err) {
+			lg.Error(err, "Unable to update status")
+			return ctrl.Result{}, err
+		}
+	}
 
 	return ctrl.Result{}, nil
 }
