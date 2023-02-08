@@ -27,3 +27,6 @@ Dockerfile.cross
 
 # helm
 dismas-deploy*
+
+# Build
+randomSleep
