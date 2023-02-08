@@ -31,12 +31,13 @@ import (
 	dismasv1 "dismas/api/v1"
 )
 
-// Event describe a Job
+// Event describes a Job
 type Event struct {
 	Command string
 	Args    []string
 }
 
+// IsEqual tell wether two Event is same (Command and args)
 func (lhs Event) IsEqual(rhs Event) bool {
 	if lhs.Command != lhs.Command {
 		return false
@@ -55,7 +56,8 @@ func (lhs Event) IsEqual(rhs Event) bool {
 // JobReconciler reconciles a Job object
 type JobReconciler struct {
 	client.Client
-	Scheme     *runtime.Scheme
+	Scheme *runtime.Scheme
+	// LastEvents records CR last Job details, key is Job name
 	LastEvents map[string]Event
 }
 
@@ -80,56 +82,32 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		lg.Error(err, "Unable to fetch object")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-	lg.Info("Get a job " + job.Spec.Command)
 
-	// 2. Exec the command
-	if r.LastEvents == nil {
-		r.LastEvents = make(map[string]Event)
-	}
+	// 2. Check if is a repeat job
 	newEvent := Event{Command: job.Spec.Command, Args: job.Spec.Args}
 	lastEvent, ok := r.LastEvents[req.Name]
-	if ok == true && lastEvent.IsEqual(newEvent) {
+	if ok && lastEvent.IsEqual(newEvent) {
 		return ctrl.Result{}, nil
 	}
 	r.LastEvents[req.Name] = newEvent
 
+	// 3. Execute the command
 	var out strings.Builder
 	cmd := exec.Command(job.Spec.Command, job.Spec.Args...)
 	cmd.Stdout = &out
-	err := cmd.Run()
+	cmdErr := cmd.Run()
 	output := out.String()
-	if err != nil {
-		lg.Error(err, err.Error())
-		lg.Info(err.Error())
-		lg.Info(output)
-		return ctrl.Result{}, err
+	if cmdErr != nil {
+		lg.Error(cmdErr, cmdErr.Error())
 	}
 
-	// 3. Update the status
-	podname, exist := os.LookupEnv("MY_POD_NAME")
-	if !exist {
+	// 4. Update the status
+	podname, ok := os.LookupEnv("MY_POD_NAME")
+	if !ok {
 		podname = "default-pod-name"
 	}
-
-	updateJobStatus := func(job *dismasv1.Job) {
-		if job.Status.Outputs == nil {
-			job.Status.Outputs = make(map[string]string)
-		}
-		if job.Status.Errors == nil {
-			job.Status.Errors = make(map[string]string)
-		}
-
-		job.Status.LatestOutput = output
-		job.Status.Outputs[podname] = output
-		if err != nil {
-			job.Status.LatestError = err.Error()
-			job.Status.Outputs[podname] = err.Error()
-		}
-	}
-
-	// CAS update status
 	for {
-		updateJobStatus(&job)
+		updateJobStatus(&job, output, cmdErr, podname)
 		err := r.Status().Update(ctx, &job)
 		if err == nil {
 			break
@@ -144,13 +122,34 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 	}
-
 	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *JobReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	if r.LastEvents == nil {
+		r.LastEvents = make(map[string]Event)
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&dismasv1.Job{}).
 		Complete(r)
+}
+
+// updateJobStatus checks job validation and updates datas
+func updateJobStatus(job *dismasv1.Job, output string, err error, podname string) {
+	if job.Status.Outputs == nil {
+		job.Status.Outputs = make(map[string]string)
+	}
+	if job.Status.Errors == nil {
+		job.Status.Errors = make(map[string]string)
+	}
+
+	job.Status.LatestOutput = output
+	job.Status.Outputs[podname] = output
+
+	if err != nil {
+		job.Status.LatestError = err.Error()
+		job.Status.Outputs[podname] = err.Error()
+	}
 }
