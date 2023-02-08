@@ -79,28 +79,37 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		podname = "default-pod-name"
 	}
 
-	if job.Status.Outputs == nil {
-		job.Status.Outputs = make(map[string]string)
-	}
-	if job.Status.Errors == nil {
-		job.Status.Errors = make(map[string]string)
-	}
+	updateJobStatus := func(job *dismasv1.Job) {
+		if job.Status.Outputs == nil {
+			job.Status.Outputs = make(map[string]string)
+		}
+		if job.Status.Errors == nil {
+			job.Status.Errors = make(map[string]string)
+		}
 
-	job.Status.LatestOutput = output
-	job.Status.Outputs[podname] = output
-	if err != nil {
-		job.Status.LatestError = err.Error()
-		job.Status.Outputs[podname] = err.Error()
+		job.Status.LatestOutput = output
+		job.Status.Outputs[podname] = output
+		if err != nil {
+			job.Status.LatestError = err.Error()
+			job.Status.Outputs[podname] = err.Error()
+		}
 	}
 
 	// CAS update status
 	for {
+		updateJobStatus(&job)
 		err := r.Status().Update(ctx, &job)
 		if err == nil {
 			break
 		} else if !apierrors.IsConflict(err) {
 			lg.Error(err, "Unable to update status")
 			return ctrl.Result{}, err
+		}
+
+		// re-get job object and update status
+		if err := r.Get(ctx, req.NamespacedName, &job); err != nil {
+			lg.Error(err, "Unable to re-fetch object")
+			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 	}
 
