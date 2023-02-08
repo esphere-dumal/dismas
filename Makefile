@@ -104,7 +104,6 @@ endif
 
 .PHONY: helm
 helm: manifests kustomize
-	$(KUSTOMIZE) build config/crd > deploy/crds/crd.yaml
 	$(KUSTOMIZE) build config/default > deploy/templates/default.yaml
 
 .PHONY: install
