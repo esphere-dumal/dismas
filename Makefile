@@ -102,6 +102,11 @@ ifndef ignore-not-found
   ignore-not-found = false
 endif
 
+.PHONY: helm
+helm: manifests kustomize
+	$(KUSTOMIZE) build config/crd > deploy/crds/crd.yaml
+	$(KUSTOMIZE) build config/default > deploy/templates/default.yaml
+
 .PHONY: install
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | kubectl apply -f -

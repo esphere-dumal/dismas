@@ -1,0 +1,14 @@
+apiVersion: dismas.dismas.esphe/v1
+kind: Job
+metadata:
+  labels:
+    app.kubernetes.io/name: ls
+    app.kubernetes.io/instance: ls
+    app.kubernetes.io/part-of: dismas
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: dismas
+  name: ls
+spec:
+  command: "ls"
+  args:
+  - "-a"
