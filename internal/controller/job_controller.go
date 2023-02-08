@@ -58,6 +58,7 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		lg.Error(err, "Unable to fetch object")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
+	lg.Info("Get a job " + job.Spec.Command)
 
 	// 2. Exec the command
 	cmd := exec.Command(job.Spec.Command, job.Spec.Args...)
