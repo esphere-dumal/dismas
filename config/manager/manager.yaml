@@ -11,7 +11,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: system
 ---
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: controller-manager
