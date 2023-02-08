@@ -11,7 +11,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: system
 ---
-apiVersion: apps/v1
+apiVersion: apps/v1beta2
 kind: DaemonSet
 metadata:
   name: controller-manager
@@ -28,7 +28,6 @@ spec:
   selector:
     matchLabels:
       control-plane: controller-manager
-  replicas: 1
   template:
     metadata:
       annotations:
