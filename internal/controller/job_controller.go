@@ -83,6 +83,9 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	lg.Info("Get a job " + job.Spec.Command)
 
 	// 2. Exec the command
+	if r.LastEvents == nil {
+		r.LastEvents = make(map[string]Event)
+	}
 	newEvent := Event{Command: job.Spec.Command, Args: job.Spec.Args}
 	lastEvent, ok := r.LastEvents[req.Name]
 	if ok == true && lastEvent.IsEqual(newEvent) {
