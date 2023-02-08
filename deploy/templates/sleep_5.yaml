@@ -8,6 +8,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: dismas
   name: sleep-5
+  namespace: dismas-system
 spec:
   command: "./randomSleep"
   args: ["5"]
