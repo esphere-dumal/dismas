@@ -10,4 +10,4 @@ metadata:
   name: gorun
 spec:
   command: "./randomSleep"
-  args: []
+  args: ["5"]

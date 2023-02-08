@@ -31,10 +31,32 @@ import (
 	dismasv1 "dismas/api/v1"
 )
 
+// Event describe a Job
+type Event struct {
+	Command string
+	Args    []string
+}
+
+func (lhs Event) IsEqual(rhs Event) bool {
+	if lhs.Command != lhs.Command {
+		return false
+	}
+	if len(lhs.Args) != len(rhs.Args) {
+		return false
+	}
+	for idx, arg := range lhs.Args {
+		if arg != rhs.Args[idx] {
+			return false
+		}
+	}
+	return true
+}
+
 // JobReconciler reconciles a Job object
 type JobReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme     *runtime.Scheme
+	LastEvents map[string]Event
 }
 
 //+kubebuilder:rbac:groups=dismas.dismas.esphe,resources=jobs,verbs=get;list;watch;create;update;patch;delete
@@ -61,8 +83,15 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	lg.Info("Get a job " + job.Spec.Command)
 
 	// 2. Exec the command
-	cmd := exec.Command(job.Spec.Command, job.Spec.Args...)
+	newEvent := Event{Command: job.Spec.Command, Args: job.Spec.Args}
+	lastEvent, ok := r.LastEvents[req.Name]
+	if ok == true && lastEvent.IsEqual(newEvent) {
+		return ctrl.Result{}, nil
+	}
+	r.LastEvents[req.Name] = newEvent
+
 	var out strings.Builder
+	cmd := exec.Command(job.Spec.Command, job.Spec.Args...)
 	cmd.Stdout = &out
 	err := cmd.Run()
 	output := out.String()
