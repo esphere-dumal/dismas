@@ -19,6 +19,6 @@ func main() {
 	} else {
 		time.Sleep(7 * time.Second)
 	}
-	random := rand.Int31()
+	random := rand.Int31() % 13
 	fmt.Println("Random outputs", random)
 }
