@@ -4,9 +4,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.11.1
   creationTimestamp: null
-  name: jobs
+  name: jobs.dismas.esphe
 spec:
-  group: dismas.dismas.esphe
+  group: dismas.esphe
   names:
     kind: Job
     listKind: JobList
