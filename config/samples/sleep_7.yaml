@@ -2,14 +2,12 @@ apiVersion: dismas.dismas.esphe/v1
 kind: Job
 metadata:
   labels:
-    app.kubernetes.io/name: randomSleep
-    app.kubernetes.io/instance: randomSleep
+    app.kubernetes.io/name: sleep
+    app.kubernetes.io/instance: sleep
     app.kubernetes.io/part-of: dismas
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: dismas
-  name: randomsleep
+  name: sleep-7
 spec:
-  command: "go"
-  args:
-  - "run"
-  - "./prog/randomSleep.go"
+  command: "./randomSleep"
+  args: ["7"]
