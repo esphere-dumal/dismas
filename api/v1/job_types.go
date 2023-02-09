@@ -39,8 +39,8 @@ type JobStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	LatestOutput string `json:"latestOutput,omitempty"`
-	LatestError  string `json:"latestError,omitempty"`
+	// LatestOutput string `json:"latestOutput,omitempty"`
+	// LatestError  string `json:"latestError,omitempty"`
 	// Outputs record all outputs with key refers to pod, value refers to output
 	Outputs map[string]string `json:"outputs,omitempty"`
 	// Errors record all outputs with key refers to pod, value refers to output

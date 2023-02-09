@@ -89,9 +89,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	podname, ok := os.LookupEnv("MY_POD_NAME")
+	if !ok {
+		podname = "default-pod-name"
+	}
 	if err = (&controller.JobReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		LastEvents: make(map[string]controller.Event),
+		Podname:    podname,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Job")
 		os.Exit(1)

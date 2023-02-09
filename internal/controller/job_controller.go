@@ -18,7 +18,6 @@ package controller
 
 import (
 	"context"
-	"os"
 	"os/exec"
 	"strings"
 
@@ -42,14 +41,17 @@ func (lhs Event) IsEqual(rhs Event) bool {
 	if lhs.Command != lhs.Command {
 		return false
 	}
+
 	if len(lhs.Args) != len(rhs.Args) {
 		return false
 	}
+
 	for idx, arg := range lhs.Args {
 		if arg != rhs.Args[idx] {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -59,6 +61,7 @@ type JobReconciler struct {
 	Scheme *runtime.Scheme
 	// LastEvents records CR last Job details, key is Job name
 	LastEvents map[string]Event
+	Podname    string
 }
 
 //+kubebuilder:rbac:groups=dismas.dismas.esphe,resources=jobs,verbs=get;list;watch;create;update;patch;delete
@@ -75,81 +78,89 @@ type JobReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.1/pkg/reconcile
 func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	lg := log.FromContext(ctx)
+	lg.Info("Receiving an event to handle")
 
-	// 1. Fetch the object
+	// 1. Fetch the job
 	var job dismasv1.Job
 	if err := r.Get(ctx, req.NamespacedName, &job); err != nil {
 		lg.Error(err, "Unable to fetch object")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// 2. Check if is a repeat job
-	newEvent := Event{Command: job.Spec.Command, Args: job.Spec.Args}
-	lastEvent, ok := r.LastEvents[req.Name]
-	if ok && lastEvent.IsEqual(newEvent) {
+	// 2. Check if the job is repeat
+	// TODO: How to tell from a repeat job or a deleted-new-created job
+	if r.isRepeatJob(Event{Command: job.Spec.Command, Args: job.Spec.Args}, req.Name) {
+		lg.Info("Refuse to exec a repeat job")
 		return ctrl.Result{}, nil
 	}
-	r.LastEvents[req.Name] = newEvent
 
 	// 3. Execute the command
-	var out strings.Builder
-	cmd := exec.Command(job.Spec.Command, job.Spec.Args...)
-	cmd.Stdout = &out
-	cmdErr := cmd.Run()
-	output := out.String()
-	if cmdErr != nil {
-		lg.Error(cmdErr, cmdErr.Error())
+	// TODO: Better error handle
+	output, cmderr, err := r.execute(job.Spec.Command, job.Spec.Args)
+	if err != nil {
+		lg.Error(err, err.Error())
 	}
+	lg.Info("Executed command for " + req.Name)
 
-	// 4. Update the status
-	podname, ok := os.LookupEnv("MY_POD_NAME")
-	if !ok {
-		podname = "default-pod-name"
-	}
+	// 4. CAS update the status
 	for {
-		updateJobStatus(&job, output, cmdErr, podname)
-		err := r.Status().Update(ctx, &job)
-		if err == nil {
-			break
+		if err := r.updateJobStatus(&job, output, cmderr, ctx); err == nil {
+			lg.Info("Updated job status for " + req.Name)
+			return ctrl.Result{}, nil
 		} else if !apierrors.IsConflict(err) {
-			lg.Error(err, "Unable to update status")
+			lg.Error(err, "Updating occured a non-conflict error")
 			return ctrl.Result{}, err
 		}
 
-		// re-get job object and update status
+		lg.Info("Updating but occured confilct, going to retry for " + req.Name)
 		if err := r.Get(ctx, req.NamespacedName, &job); err != nil {
 			lg.Error(err, "Unable to re-fetch object")
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 	}
-	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *JobReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	if r.LastEvents == nil {
-		r.LastEvents = make(map[string]Event)
-	}
-
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&dismasv1.Job{}).
 		Complete(r)
 }
 
-// updateJobStatus checks job validation and updates datas
-func updateJobStatus(job *dismasv1.Job, output string, err error, podname string) {
+// TODO: Check with namespace rather than name
+func (r *JobReconciler) isRepeatJob(newEvent Event, jobName string) bool {
+	lastEvent, ok := r.LastEvents[jobName]
+	if ok && lastEvent.IsEqual(newEvent) {
+		return true
+	}
+	r.LastEvents[jobName] = newEvent
+	return false
+}
+
+// execute run a command with its args
+func (r *JobReconciler) execute(command string, args []string) (string, string, error) {
+	cmd := exec.Command(command, args...)
+
+	var output, cmderr strings.Builder
+	cmd.Stdout = &output
+	cmd.Stderr = &cmderr
+
+	err := cmd.Run()
+	return output.String(), cmderr.String(), err
+}
+
+// updateJobStatus checks job and updates datas
+func (r *JobReconciler) updateJobStatus(job *dismasv1.Job, output string, cmderr string, ctx context.Context) error {
 	if job.Status.Outputs == nil {
 		job.Status.Outputs = make(map[string]string)
 	}
+	job.Status.Outputs[r.Podname] = output
+
 	if job.Status.Errors == nil {
 		job.Status.Errors = make(map[string]string)
 	}
+	job.Status.Errors[r.Podname] = cmderr
 
-	job.Status.LatestOutput = output
-	job.Status.Outputs[podname] = output
-
-	if err != nil {
-		job.Status.LatestError = err.Error()
-		job.Status.Outputs[podname] = err.Error()
-	}
+	err := r.Status().Update(ctx, job)
+	return err
 }
