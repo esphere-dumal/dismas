@@ -104,7 +104,6 @@ endif
 
 .PHONY: helm
 helm: manifests kustomize
-	mkdir deploy/crds
 	$(KUSTOMIZE) build config/crd > deploy/crds/crd.yaml
 	$(KUSTOMIZE) build config/default > deploy/templates/dismas.yaml
 	sed -i 's/kustomize/helm/g' deploy/templates/*
