@@ -110,7 +110,7 @@ helm: manifests kustomize
 	sed -i 's/kustomize/helm/g' deploy/templates/*
 
 .PHONY: helmclean
-cleanhelm:
+helmclean:
 	rm dismas-deploy*
 	rm deploy/crds/* 
 	rm deploy/templates/dismas.yaml
