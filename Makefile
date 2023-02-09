@@ -106,7 +106,11 @@ endif
 helm: manifests kustomize
 	$(KUSTOMIZE) build config/crd > deploy/crds/crd.yaml
 	$(KUSTOMIZE) build config/default > deploy/templates/dismas.yaml
-	sed -i 's/kustomize/helm/g' deploy/templates/dismas.yaml
+	sed -i 's/kustomize/helm/g' deploy/templates/*
+
+.PHONY: cleanhelm
+cleanhelm:
+	rm deploy/crds/* deploy/templates/dismas.yaml
 
 .PHONY: install
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
