@@ -103,21 +103,27 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	// 4. CAS update the status
-	checkJobMapIsNil(&job)
+	checkJobMapIsNotNil(&job)
 	for {
 		if err := r.updateJobStatus(&job, stdout, stderr, cmderr, ctx); err == nil {
+			// Successfully updated
 			lg.Info("Updated job status for " + req.Name)
+
 			return ctrl.Result{}, nil
-		} else if !apierrors.IsConflict(err) {
+
+		} else if apierrors.IsConflict(err) {
+			// Conflict, re-get object and retry updating
+			lg.Info("Updating but occured confilct, going to retry for " + req.Name)
+
+			if err := r.Get(ctx, req.NamespacedName, &job); err != nil {
+				lg.Error(err, "Unable to re-fetch object")
+				return ctrl.Result{}, client.IgnoreNotFound(err)
+			}
+		} else {
+			// Unexpected error
 			lg.Error(err, "Updating occured a non-conflict error")
+
 			return ctrl.Result{}, err
-		}
-
-		lg.Info("Updating but occured confilct, going to retry for " + req.Name)
-
-		if err := r.Get(ctx, req.NamespacedName, &job); err != nil {
-			lg.Error(err, "Unable to re-fetch object")
-			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 	}
 }
@@ -165,7 +171,8 @@ func (r *JobReconciler) execute(command string, args []string) (string, string, 
 	return output.String(), cmderr.String(), err
 }
 
-func checkJobMapIsNil(job *dismasv1.Job) {
+// checkJobMapIsNil make sures maps in a Job object is initialized
+func checkJobMapIsNotNil(job *dismasv1.Job) {
 	if job.Status.Stdouts == nil {
 		job.Status.Stdouts = make(map[string]string)
 	}

@@ -93,6 +93,7 @@ func main() {
 	if !ok {
 		podname = "default-pod-name"
 	}
+
 	if err = (&controller.JobReconciler{
 		Client:     mgr.GetClient(),
 		Scheme:     mgr.GetScheme(),
