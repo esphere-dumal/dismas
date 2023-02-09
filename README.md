@@ -2,7 +2,8 @@
 Dismas is a simple Operator dispatching job into each nodes in a k8s cluster.
 
 ## Description
-Dismas is built by Kubebuilder, and is able to be deployed by helmx
+Dismas is built by Kubebuilder, and is able to be deployed by helm.
+Added github action to build and push a docker image.
 
 ## Getting Started
 You’ll need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
