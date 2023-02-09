@@ -27,6 +27,8 @@ Dockerfile.cross
 
 # helm
 dismas-deploy*
+deploy/crds/*
+deploy/templates/dismas.yaml
 
 # Build
 randomSleep
