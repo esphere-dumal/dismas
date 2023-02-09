@@ -28,9 +28,9 @@ type JobSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// +kubebuilder:validation:Minimun=0
+	// +kubebuilder:validation:Required
 	Command string `json:"command"`
-	// +kubebuilder:validation:Minimun=0
+	// +kubebuilder:validation:Optional
 	Args []string `json:"args"`
 }
 
@@ -39,11 +39,11 @@ type JobStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// LatestOutput string `json:"latestOutput,omitempty"`
-	// LatestError  string `json:"latestError,omitempty"`
-	// Outputs record all outputs with key refers to pod, value refers to output
-	Outputs map[string]string `json:"outputs,omitempty"`
-	// Errors record all outputs with key refers to pod, value refers to output
+	// Stdouts record all outputs with key refers to pod, value refers to output
+	Stdouts map[string]string `json:"stdouts,omitempty"`
+	// Stderrs records all error messages outputs with key refers to pod, value refers to error messages
+	Stderrs map[string]string `json:"stderrs,omitempty"`
+	// Errors records error when execute command in containers
 	Errors map[string]string `json:"errors,omitempty"`
 }
 

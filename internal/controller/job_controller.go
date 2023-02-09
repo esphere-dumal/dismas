@@ -60,7 +60,7 @@ func (lhs Event) IsEqual(rhs Event) bool {
 type JobReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	// LastEvents records CR last Job details, key is Job name
+
 	LastEvents map[string]map[string]Event
 	Podname    string
 }
@@ -96,15 +96,16 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	// 3. Execute the command
-	output, cmderr, err := r.execute(job.Spec.Command, job.Spec.Args)
-	if err != nil {
-		lg.Error(err, err.Error())
-	}
+	stdout, stderr, cmderr := r.execute(job.Spec.Command, job.Spec.Args)
 	lg.Info("Executed command for " + req.Name)
+	if cmderr != nil {
+		lg.Error(cmderr, cmderr.Error())
+	}
 
 	// 4. CAS update the status
+	checkJobMapIsNil(&job)
 	for {
-		if err := r.updateJobStatus(&job, output, cmderr, ctx); err == nil {
+		if err := r.updateJobStatus(&job, stdout, stderr, cmderr, ctx); err == nil {
 			lg.Info("Updated job status for " + req.Name)
 			return ctrl.Result{}, nil
 		} else if !apierrors.IsConflict(err) {
@@ -113,6 +114,7 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 
 		lg.Info("Updating but occured confilct, going to retry for " + req.Name)
+
 		if err := r.Get(ctx, req.NamespacedName, &job); err != nil {
 			lg.Error(err, "Unable to re-fetch object")
 			return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -163,18 +165,25 @@ func (r *JobReconciler) execute(command string, args []string) (string, string, 
 	return output.String(), cmderr.String(), err
 }
 
-// updateJobStatus checks job and updates datas
-func (r *JobReconciler) updateJobStatus(job *dismasv1.Job, output string, cmderr string, ctx context.Context) error {
-	if job.Status.Outputs == nil {
-		job.Status.Outputs = make(map[string]string)
+func checkJobMapIsNil(job *dismasv1.Job) {
+	if job.Status.Stdouts == nil {
+		job.Status.Stdouts = make(map[string]string)
 	}
-	job.Status.Outputs[r.Podname] = output
+
+	if job.Status.Stderrs == nil {
+		job.Status.Stdouts = make(map[string]string)
+	}
 
 	if job.Status.Errors == nil {
 		job.Status.Errors = make(map[string]string)
 	}
-	job.Status.Errors[r.Podname] = cmderr
+}
 
-	err := r.Status().Update(ctx, job)
-	return err
+// updateJobStatus checks job and updates datas
+func (r *JobReconciler) updateJobStatus(job *dismasv1.Job, stdout string, stderr string, err error, ctx context.Context) error {
+	job.Status.Stdouts[r.Podname] = stdout
+	job.Status.Stderrs[r.Podname] = stderr
+	job.Status.Errors[r.Podname] = err.Error()
+
+	return r.Status().Update(ctx, job)
 }
