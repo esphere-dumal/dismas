@@ -96,7 +96,7 @@ func main() {
 	if err = (&controller.JobReconciler{
 		Client:     mgr.GetClient(),
 		Scheme:     mgr.GetScheme(),
-		LastEvents: make(map[string]controller.Event),
+		LastEvents: make(map[string]map[string]controller.Event),
 		Podname:    podname,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Job")

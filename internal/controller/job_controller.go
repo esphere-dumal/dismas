@@ -23,6 +23,7 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -60,7 +61,7 @@ type JobReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 	// LastEvents records CR last Job details, key is Job name
-	LastEvents map[string]Event
+	LastEvents map[string]map[string]Event
 	Podname    string
 }
 
@@ -89,13 +90,12 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	// 2. Check if the job is repeat
 	// TODO: How to tell from a repeat job or a deleted-new-created job
-	if r.isRepeatJob(Event{Command: job.Spec.Command, Args: job.Spec.Args}, req.Name) {
+	if r.isRepeatJob(Event{Command: job.Spec.Command, Args: job.Spec.Args}, req.NamespacedName) {
 		lg.Info("Refuse to exec a repeat job")
 		return ctrl.Result{}, nil
 	}
 
 	// 3. Execute the command
-	// TODO: Better error handle
 	output, cmderr, err := r.execute(job.Spec.Command, job.Spec.Args)
 	if err != nil {
 		lg.Error(err, err.Error())
@@ -127,14 +127,28 @@ func (r *JobReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// TODO: Check with namespace rather than name
-func (r *JobReconciler) isRepeatJob(newEvent Event, jobName string) bool {
-	lastEvent, ok := r.LastEvents[jobName]
-	if ok && lastEvent.IsEqual(newEvent) {
-		return true
+/*
+isRepeatJob checks a job is the same one as last executed
+- a new job created: track in cache
+- a job running but the CR is updated: update records in memory
+TODO: a job finished running
+*/
+func (r *JobReconciler) isRepeatJob(newEvent Event, namespacedname types.NamespacedName) bool {
+	// There is no target namespace in cache
+	if _, ok := r.LastEvents[namespacedname.Namespace]; !ok {
+		r.LastEvents[namespacedname.Namespace] = make(map[string]Event)
+		r.LastEvents[namespacedname.Namespace][namespacedname.Name] = newEvent
+		return false
 	}
-	r.LastEvents[jobName] = newEvent
-	return false
+
+	lastEvent, ok := r.LastEvents[namespacedname.Namespace][namespacedname.Name]
+	// There is no target name in cache or There is different between two events
+	if !ok || !lastEvent.IsEqual(newEvent) {
+		r.LastEvents[namespacedname.Namespace][namespacedname.Name] = newEvent
+		return false
+	}
+
+	return true
 }
 
 // execute run a command with its args
