@@ -42,7 +42,6 @@ spec:
               command:
                 type: string
             required:
-            - args
             - command
             type: object
           status:
@@ -51,17 +50,18 @@ spec:
               errors:
                 additionalProperties:
                   type: string
-                description: Errors record all outputs with key refers to pod, value
-                  refers to output
+                description: Errors records error when execute command in containers
                 type: object
-              latestError:
-                type: string
-              latestOutput:
-                type: string
-              outputs:
+              stderrs:
                 additionalProperties:
                   type: string
-                description: Outputs record all outputs with key refers to pod, value
+                description: Stderrs records all error messages outputs with key refers
+                  to pod, value refers to error messages
+                type: object
+              stdouts:
+                additionalProperties:
+                  type: string
+                description: Stdouts record all outputs with key refers to pod, value
                   refers to output
                 type: object
             type: object

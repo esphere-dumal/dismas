@@ -81,23 +81,27 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	lg := log.FromContext(ctx)
 	lg.Info("Receiving an event to handle")
 
-	// 1. Fetch the job
+	// 1. Fetch the job and deal with deleted one
 	var job dismasv1.Job
 	if err := r.Get(ctx, req.NamespacedName, &job); err != nil {
 		lg.Error(err, "Unable to fetch object")
+
+		if apierrors.IsNotFound(err) {
+			r.cleanJobCache(req.NamespacedName)
+		}
+
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	// 2. Check if the job is repeat
-	// TODO: How to tell from a repeat job or a deleted-new-created job
 	if r.isRepeatJob(Event{Command: job.Spec.Command, Args: job.Spec.Args}, req.NamespacedName) {
 		lg.Info("Refuse to exec a repeat job")
 		return ctrl.Result{}, nil
 	}
 
 	// 3. Execute the command
+	lg.Info("Execute command for " + req.Name)
 	stdout, stderr, cmderr := r.execute(job.Spec.Command, job.Spec.Args)
-	lg.Info("Executed command for " + req.Name)
 	if cmderr != nil {
 		lg.Error(cmderr, cmderr.Error())
 	}
@@ -105,25 +109,25 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	// 4. CAS update the status
 	checkJobMapIsNotNil(&job)
 	for {
-		if err := r.updateJobStatus(&job, stdout, stderr, cmderr, ctx); err == nil {
-			// Successfully updated
+		err := r.updateJobStatus(&job, stdout, stderr, cmderr, ctx)
+
+		// Successfully updated status
+		if err == nil {
 			lg.Info("Updated job status for " + req.Name)
-
 			return ctrl.Result{}, nil
+		}
 
-		} else if apierrors.IsConflict(err) {
-			// Conflict, re-get object and retry updating
-			lg.Info("Updating but occured confilct, going to retry for " + req.Name)
-
-			if err := r.Get(ctx, req.NamespacedName, &job); err != nil {
-				lg.Error(err, "Unable to re-fetch object")
-				return ctrl.Result{}, client.IgnoreNotFound(err)
-			}
-		} else {
-			// Unexpected error
+		// Unexpected errors
+		if !apierrors.IsConflict(err) {
 			lg.Error(err, "Updating occured a non-conflict error")
-
 			return ctrl.Result{}, err
+		}
+
+		// Conflict, retry updating
+		lg.Info("Updating but occured confilct, going to retry for " + req.Name)
+		if err := r.Get(ctx, req.NamespacedName, &job); err != nil {
+			lg.Error(err, "Unable to re-fetch object")
+			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 	}
 }
@@ -135,11 +139,18 @@ func (r *JobReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+// cleanJobCache removes a deleted Job's last event tracked in cache
+func (r *JobReconciler) cleanJobCache(namespacedname types.NamespacedName) {
+	if _, ok := r.LastEvents[namespacedname.Namespace]; ok {
+		delete(r.LastEvents[namespacedname.Namespace], namespacedname.Name)
+	}
+}
+
 /*
 isRepeatJob checks a job is the same one as last executed
-- a new job created: track in cache
-- a job running but the CR is updated: update records in memory
-TODO: a job finished running
+under two conditions the cache will be updated and return false
+- a new job created
+- the command or args are different
 */
 func (r *JobReconciler) isRepeatJob(newEvent Event, namespacedname types.NamespacedName) bool {
 	// There is no target namespace in cache
