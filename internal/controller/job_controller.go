@@ -173,17 +173,20 @@ func (r *JobReconciler) execute(command string, args []string) (string, string, 
 	return output.String(), cmderr.String(), err
 }
 
-// checkJobMapIsNil make sures maps in a Job object is initialized
+// checkJobMapIsNil make sures maps in Job is initialized
 func checkJobMapIsNotNil(job *dismasv1.Job) {
 	if job.Status.Stdouts == nil {
+		log.Log.Info("Initalized job.Status.Stdouts")
 		job.Status.Stdouts = make(map[string]string)
 	}
 
 	if job.Status.Stderrs == nil {
+		log.Log.Info("Initalized job.Status.Stderrs")
 		job.Status.Stdouts = make(map[string]string)
 	}
 
 	if job.Status.Errors == nil {
+		log.Log.Info("Initalized job.Status.Errors")
 		job.Status.Errors = make(map[string]string)
 	}
 }
