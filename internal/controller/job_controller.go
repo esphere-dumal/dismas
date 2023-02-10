@@ -145,7 +145,7 @@ func (r *JobReconciler) isRepeatJob(newEvent Event, namespacedname types.Namespa
 	}
 
 	// There is no target namespace in cache
-	if isNamespaceExist() {
+	if !isNamespaceExist() {
 		r.LastEvents[namespacedname.Namespace] = make(map[string]Event)
 		r.LastEvents[namespacedname.Namespace][namespacedname.Name] = newEvent
 		return false
