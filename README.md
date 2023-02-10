@@ -22,6 +22,7 @@ make manifests
 ``` sh
 make docker-build docker-push IMG=esphe/dismas:latest
 ```
+When pushing on the master branch, github action will automatically build and push image to esphe/dismas:master
 - Generate config file for helm by kustomize
 ``` sh
 make helm

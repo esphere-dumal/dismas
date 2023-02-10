@@ -1,19 +1,3 @@
-/*
-Copyright 2023.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package controller
 
 import (
@@ -71,12 +55,6 @@ type JobReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// the Job object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.1/pkg/reconcile
 func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	lg := log.FromContext(ctx)
 	lg.Info("Receiving an event to handle")
@@ -107,7 +85,6 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	// 4. CAS update the status
-	checkJobMapIsNotNil(&job)
 	for {
 		err := r.updateJobStatus(&job, stdout, stderr, cmderr, ctx)
 
@@ -141,20 +118,34 @@ func (r *JobReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // cleanJobCache removes a deleted Job's last event tracked in cache
 func (r *JobReconciler) cleanJobCache(namespacedname types.NamespacedName) {
-	if _, ok := r.LastEvents[namespacedname.Namespace]; ok {
-		delete(r.LastEvents[namespacedname.Namespace], namespacedname.Name)
+	if _, ok := r.LastEvents[namespacedname.Namespace]; !ok {
+		return
 	}
+
+	// ? maybe this check is not necessary
+	if _, ok := r.LastEvents[namespacedname.Namespace][namespacedname.Name]; !ok {
+		return
+	}
+
+	delete(r.LastEvents[namespacedname.Namespace], namespacedname.Name)
 }
 
 /*
 isRepeatJob checks a job is the same one as last executed
 under two conditions the cache will be updated and return false
-- a new job created
-- the command or args are different
+a new job created or the command are different
 */
 func (r *JobReconciler) isRepeatJob(newEvent Event, namespacedname types.NamespacedName) bool {
+	// isNamespaceExist checks if there is
+	isNamespaceExist := func() bool {
+		if _, ok := r.LastEvents[namespacedname.Namespace]; ok {
+			return true
+		}
+		return false
+	}
+
 	// There is no target namespace in cache
-	if _, ok := r.LastEvents[namespacedname.Namespace]; !ok {
+	if isNamespaceExist() {
 		r.LastEvents[namespacedname.Namespace] = make(map[string]Event)
 		r.LastEvents[namespacedname.Namespace][namespacedname.Name] = newEvent
 		return false
@@ -199,6 +190,8 @@ func checkJobMapIsNotNil(job *dismasv1.Job) {
 
 // updateJobStatus checks job and updates datas
 func (r *JobReconciler) updateJobStatus(job *dismasv1.Job, stdout string, stderr string, err error, ctx context.Context) error {
+	checkJobMapIsNotNil(job)
+
 	job.Status.Stdouts[r.Podname] = stdout
 	job.Status.Stderrs[r.Podname] = stderr
 	job.Status.Errors[r.Podname] = err.Error()
