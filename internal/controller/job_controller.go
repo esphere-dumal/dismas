@@ -212,8 +212,12 @@ func (r *JobReconciler) updateJobStatus(job *dismasv1.Job, stdout string, stderr
 	log.Log.Info("job maps should not be nil")
 
 	job.Status.Stdouts[r.Podname] = stdout
+	log.Log.Info("Stdouts is ok")
 	job.Status.Stderrs[r.Podname] = stderr
+	log.Log.Info("Stderrs is ok")
 	job.Status.Errors[r.Podname] = err.Error()
+	log.Log.Info("Errors is ok")
 
+	log.Log.Info("Going to Updated CR")
 	return r.Status().Update(ctx, job)
 }
