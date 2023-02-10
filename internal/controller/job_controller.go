@@ -195,6 +195,8 @@ func checkJobMapIsNotNil(job *dismasv1.Job) {
 func (r *JobReconciler) updateJobStatus(job *dismasv1.Job, stdout string, stderr string, err error, ctx context.Context) error {
 	checkJobMapIsNotNil(job)
 
+	log.Log.Info("job maps should not be nil")
+
 	job.Status.Stdouts[r.Podname] = stdout
 	job.Status.Stderrs[r.Podname] = stderr
 	job.Status.Errors[r.Podname] = err.Error()
