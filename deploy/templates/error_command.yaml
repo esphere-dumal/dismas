@@ -2,13 +2,13 @@ apiVersion: dismas.dismas.esphe/v1
 kind: Job
 metadata:
   labels:
-    app.kubernetes.io/name: sleep
-    app.kubernetes.io/instance: sleep
+    app.kubernetes.io/name: error-command
+    app.kubernetes.io/instance: error-command
     app.kubernetes.io/part-of: dismas
     app.kubernetes.io/managed-by: helm
     app.kubernetes.io/created-by: dismas
-  name: sleep-5
+  name: error-command
   namespace: dismas-system
 spec:
-  command: "./randomSleep"
-  args: ["5"]
+  command: "NotACommand"
+  args: [""]

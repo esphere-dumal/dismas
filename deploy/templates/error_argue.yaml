@@ -2,13 +2,13 @@ apiVersion: dismas.dismas.esphe/v1
 kind: Job
 metadata:
   labels:
-    app.kubernetes.io/name: pwd
-    app.kubernetes.io/instance: pwd
+    app.kubernetes.io/name: error-args
+    app.kubernetes.io/instance: error-args
     app.kubernetes.io/part-of: dismas
     app.kubernetes.io/managed-by: helm
     app.kubernetes.io/created-by: dismas
-  name: pwd
+  name: error-args
   namespace: dismas-system
 spec:
-  command: "pwd"
-  args: []
+  command: "ls"
+  args: ["--this is a wrong args"]
