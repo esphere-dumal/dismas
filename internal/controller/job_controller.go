@@ -201,7 +201,7 @@ func (r *JobReconciler) updateJobStatus(job *dismasv1.Job, stdout string, stderr
 
 	if job.Status.Stderrs == nil {
 		log.Log.Info("Initalized job.Status.Stderrs")
-		job.Status.Stdouts = make(map[string]string)
+		job.Status.Stderrs = make(map[string]string)
 	}
 
 	if job.Status.Errors == nil {
@@ -212,12 +212,9 @@ func (r *JobReconciler) updateJobStatus(job *dismasv1.Job, stdout string, stderr
 	log.Log.Info("job maps should not be nil")
 
 	job.Status.Stdouts[r.Podname] = stdout
-	log.Log.Info("Stdouts is ok")
 	job.Status.Stderrs[r.Podname] = stderr
-	log.Log.Info("Stderrs is ok")
 	job.Status.Errors[r.Podname] = err.Error()
-	log.Log.Info("Errors is ok")
 
-	log.Log.Info("Going to Updated CR")
+	log.Log.Info("Job updated in cache, going to update CR")
 	return r.Status().Update(ctx, job)
 }
