@@ -193,7 +193,21 @@ func checkJobMapIsNotNil(job *dismasv1.Job) {
 
 // updateJobStatus checks job and updates datas
 func (r *JobReconciler) updateJobStatus(job *dismasv1.Job, stdout string, stderr string, err error, ctx context.Context) error {
-	checkJobMapIsNotNil(job)
+	// checkJobMapIsNotNil(job)
+	if job.Status.Stdouts == nil {
+		log.Log.Info("Initalized job.Status.Stdouts")
+		job.Status.Stdouts = make(map[string]string)
+	}
+
+	if job.Status.Stderrs == nil {
+		log.Log.Info("Initalized job.Status.Stderrs")
+		job.Status.Stdouts = make(map[string]string)
+	}
+
+	if job.Status.Errors == nil {
+		log.Log.Info("Initalized job.Status.Errors")
+		job.Status.Errors = make(map[string]string)
+	}
 
 	log.Log.Info("job maps should not be nil")
 
