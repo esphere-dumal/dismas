@@ -2,7 +2,7 @@
 # This file is used to track the info used to scaffold your project
 # and allow the plugins properly work.
 # More info: https://book.kubebuilder.io/reference/project-config.html
-domain: dismas.esphe
+domain: esphe.org
 layout:
 - go.kubebuilder.io/v4-alpha
 projectName: dismas
@@ -12,7 +12,7 @@ resources:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: dismas.esphe
+  domain: esphe.org
   group: dismas
   kind: Job
   path: dismas/api/v1
