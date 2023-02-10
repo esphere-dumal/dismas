@@ -209,11 +209,14 @@ func (r *JobReconciler) updateJobStatus(job *dismasv1.Job, stdout string, stderr
 		job.Status.Errors = make(map[string]string)
 	}
 
-	log.Log.Info("job maps should not be nil")
-
 	job.Status.Stdouts[r.Podname] = stdout
 	job.Status.Stderrs[r.Podname] = stderr
-	job.Status.Errors[r.Podname] = err.Error()
+
+	errorMessage := "No error when executing the command"
+	if err != nil {
+		errorMessage = err.Error()
+	}
+	job.Status.Errors[r.Podname] = errorMessage
 
 	log.Log.Info("Job updated in cache, going to update CR")
 	return r.Status().Update(ctx, job)
