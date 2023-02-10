@@ -173,7 +173,7 @@ func checkJobMapIsNotNil(job *dismasv1.Job) {
 
 	if job.Status.Stderrs == nil {
 		log.Log.Info("Initalized job.Status.Stderrs " + job.Name)
-		job.Status.Stdouts = make(map[string]string)
+		job.Status.Stderrs = make(map[string]string)
 	}
 
 	if job.Status.Errors == nil {
