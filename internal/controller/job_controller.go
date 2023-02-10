@@ -57,7 +57,7 @@ type JobReconciler struct {
 // move the current state of the cluster closer to the desired state.
 func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	lg := log.FromContext(ctx)
-	lg.Info("Receiving an event to handle")
+	lg.Info("Receiving an event to handle for job " + req.Name)
 
 	// 1. Fetch the job and deal with deleted one
 	var job dismasv1.Job
@@ -73,16 +73,13 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	// 2. Check if the job is repeat
 	if r.isRepeatJob(Event{Command: job.Spec.Command, Args: job.Spec.Args}, req.NamespacedName) {
-		lg.Info("Refuse to exec a repeat job")
+		lg.Info("Refuse to exec a repeat job " + req.Name)
 		return ctrl.Result{}, nil
 	}
 
 	// 3. Execute the command
 	lg.Info("Execute command for " + req.Name)
 	stdout, stderr, cmderr := r.execute(job.Spec.Command, job.Spec.Args)
-	if cmderr != nil {
-		lg.Error(cmderr, cmderr.Error())
-	}
 
 	// 4. CAS update the status
 	for {
@@ -96,7 +93,7 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 		// Unexpected errors
 		if !apierrors.IsConflict(err) {
-			lg.Error(err, "Updating occured a non-conflict error")
+			lg.Error(err, "Updating occured a non-conflict error for job "+req.Name)
 			return ctrl.Result{}, err
 		}
 
@@ -122,11 +119,6 @@ func (r *JobReconciler) cleanJobCache(namespacedname types.NamespacedName) {
 		return
 	}
 
-	// ? maybe this check is not necessary
-	if _, ok := r.LastEvents[namespacedname.Namespace][namespacedname.Name]; !ok {
-		return
-	}
-
 	delete(r.LastEvents[namespacedname.Namespace], namespacedname.Name)
 }
 
@@ -136,7 +128,6 @@ under two conditions the cache will be updated and return false
 a new job created or the command are different
 */
 func (r *JobReconciler) isRepeatJob(newEvent Event, namespacedname types.NamespacedName) bool {
-	// isNamespaceExist checks if there is
 	isNamespaceExist := func() bool {
 		if _, ok := r.LastEvents[namespacedname.Namespace]; ok {
 			return true
@@ -144,7 +135,7 @@ func (r *JobReconciler) isRepeatJob(newEvent Event, namespacedname types.Namespa
 		return false
 	}
 
-	// There is no target namespace in cache
+	// There is no target namespace in cache -> a create event
 	if !isNamespaceExist() {
 		r.LastEvents[namespacedname.Namespace] = make(map[string]Event)
 		r.LastEvents[namespacedname.Namespace][namespacedname.Name] = newEvent
@@ -176,48 +167,34 @@ func (r *JobReconciler) execute(command string, args []string) (string, string, 
 // checkJobMapIsNil make sures maps in Job is initialized
 func checkJobMapIsNotNil(job *dismasv1.Job) {
 	if job.Status.Stdouts == nil {
-		log.Log.Info("Initalized job.Status.Stdouts")
+		log.Log.Info("Initalized job.Status.Stdouts for " + job.Name)
 		job.Status.Stdouts = make(map[string]string)
 	}
 
 	if job.Status.Stderrs == nil {
-		log.Log.Info("Initalized job.Status.Stderrs")
+		log.Log.Info("Initalized job.Status.Stderrs " + job.Name)
 		job.Status.Stdouts = make(map[string]string)
 	}
 
 	if job.Status.Errors == nil {
-		log.Log.Info("Initalized job.Status.Errors")
+		log.Log.Info("Initalized job.Status.Errors " + job.Name)
 		job.Status.Errors = make(map[string]string)
 	}
 }
 
 // updateJobStatus checks job and updates datas
 func (r *JobReconciler) updateJobStatus(job *dismasv1.Job, stdout string, stderr string, err error, ctx context.Context) error {
-	// checkJobMapIsNotNil(job)
-	if job.Status.Stdouts == nil {
-		log.Log.Info("Initalized job.Status.Stdouts")
-		job.Status.Stdouts = make(map[string]string)
-	}
-
-	if job.Status.Stderrs == nil {
-		log.Log.Info("Initalized job.Status.Stderrs")
-		job.Status.Stderrs = make(map[string]string)
-	}
-
-	if job.Status.Errors == nil {
-		log.Log.Info("Initalized job.Status.Errors")
-		job.Status.Errors = make(map[string]string)
-	}
+	checkJobMapIsNotNil(job)
 
 	job.Status.Stdouts[r.Podname] = stdout
 	job.Status.Stderrs[r.Podname] = stderr
 
-	errorMessage := "No error when executing the command"
+	errorMessage := "No error when executing the command + " + job.Name
 	if err != nil {
 		errorMessage = err.Error()
 	}
 	job.Status.Errors[r.Podname] = errorMessage
 
-	log.Log.Info("Job updated in cache, going to update CR")
+	log.Log.Info("Job updated in cache, going to update CR for " + job.Name)
 	return r.Status().Update(ctx, job)
 }
