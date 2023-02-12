@@ -12,7 +12,7 @@ metadata:
   name: job-viewer-role
 rules:
 - apiGroups:
-  - dismas.esphe.org
+  - crd.dismas.org
   resources:
   - jobs
   verbs:
@@ -20,7 +20,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - dismas.esphe.org
+  - crd.dismas.org
   resources:
   - jobs/status
   verbs:
