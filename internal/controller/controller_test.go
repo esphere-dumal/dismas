@@ -27,7 +27,7 @@ var _ = Describe("Job Controller", func() {
 			ctx := context.Background()
 			job := &dismasv1.Job{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "dismas.dismas.esphe/v1",
+					APIVersion: "dismas/v1",
 					Kind:       "Job",
 				},
 				ObjectMeta: metav1.ObjectMeta{

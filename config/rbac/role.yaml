@@ -6,7 +6,7 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - dismas.dismas.esphe
+  - dismas
   resources:
   - jobs
   verbs:
@@ -18,13 +18,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - dismas.dismas.esphe
+  - dismas
   resources:
   - jobs/finalizers
   verbs:
   - update
 - apiGroups:
-  - dismas.dismas.esphe
+  - dismas
   resources:
   - jobs/status
   verbs:
