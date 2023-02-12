@@ -1,4 +1,4 @@
-apiVersion: dismas.dismas.esphe/v1
+apiVersion: crd.dismas.org/v1
 kind: Job
 metadata:
   labels:
