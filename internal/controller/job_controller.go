@@ -26,7 +26,7 @@ type Event struct {
 
 // IsEqual tell wether two Event is same (Command and args)
 func (lhs Event) IsEqual(rhs Event) bool {
-	if lhs.Command != lhs.Command {
+	if lhs.Command != rhs.Command {
 		return false
 	}
 
