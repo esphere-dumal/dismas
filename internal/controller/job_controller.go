@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"os/exec"
 	"strings"
 
@@ -53,6 +54,8 @@ type JobReconciler struct {
 //+kubebuilder:rbac:groups=crd.dismas.org,resources=jobs/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=crd.dismas.org,resources=jobs/finalizers,verbs=update
 
+const maxRetry = 7
+
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -82,7 +85,7 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	stdout, stderr, cmderr := r.execute(job.Spec.Command, job.Spec.Args)
 
 	// 4. CAS update the status
-	for {
+	for retryTime := 0; retryTime <= maxRetry; retryTime++ {
 		err := r.updateJobStatus(&job, stdout, stderr, cmderr, ctx)
 
 		// Successfully updated status
@@ -104,6 +107,7 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 	}
+	return ctrl.Result{}, errors.New("Too mamy confilct when retring updating")
 }
 
 // SetupWithManager sets up the controller with the Manager.
