@@ -3,8 +3,10 @@ package controller
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os/exec"
 	"strings"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -107,7 +109,7 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 	}
-	return ctrl.Result{}, errors.New("Too mamy confilct when retring updating")
+	return requeueAfter(), errors.New("too mamy confilct when retring updating")
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -201,4 +203,19 @@ func (r *JobReconciler) updateJobStatus(job *dismasv1.Job, stdout string, stderr
 
 	log.Log.Info("Job updated in cache, going to update CR for " + job.Name)
 	return r.Status().Update(ctx, job)
+}
+
+// requeueAfter creates a ctrl.Result that requeue after secs seconds
+// Default value: 3s
+func requeueAfter(secs ...int) ctrl.Result {
+	if len(secs) > 1 {
+		panic(fmt.Errorf("invalid argument secs"))
+	}
+
+	s := 3
+	if len(secs) == 1 {
+		s = secs[0]
+	}
+
+	return ctrl.Result{RequeueAfter: time.Duration(s) * time.Second}
 }
