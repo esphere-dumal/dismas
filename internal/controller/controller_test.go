@@ -36,7 +36,7 @@ import (
 
 // +kubebuilder:docs-gen:collapse=Imports
 
-var _ = Describe("CronJob controller", func() {
+var _ = Describe("Job controller", func() {
 	var ctx = context.TODO()
 
 	Context("When create Job", func() {
@@ -102,10 +102,11 @@ var _ = Describe("CronJob controller", func() {
 		It("Should create a new job", func() {
 			const (
 				jobName = "test-echo"
-				command = "echo test"
+				command = "echo"
+				arg     = "test"
 			)
 
-			By("Creating an echo job")
+			By("Create an echo job")
 			job := &dismasv1.Job{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: testNamespace,
@@ -113,12 +114,24 @@ var _ = Describe("CronJob controller", func() {
 				},
 				Spec: dismasv1.JobSpec{
 					Command: command,
+					Args:    []string{arg},
 				},
 			}
 			Expect(k8sClient.Create(ctx, job)).Should(Succeed())
+			AssertJobStatus(ctx, *job, "test\n")
 
-			// By("Check job output")
-			// AssertJobStatus(ctx, *job, "test")
+			// By("Update job command")
+			// var job1 dismasv1.Job
+			// Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: jobName}, &job1)).NotTo(HaveOccurred())
+			// job1.Spec.Args = []string{"hello"}
+			// Expect(k8sClient.Status().Update(ctx, &job1)).NotTo(HaveOccurred())
+			// AssertJobStatus(ctx, *job, "hello\n")
+
+			// By("Delete job and Re-create job")
+			// Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: jobName}, &job1)).NotTo(HaveOccurred())
+			// Expect(k8sClient.Delete(ctx, &job1)).NotTo(HaveOccurred())
+			// Expect(k8sClient.Create(ctx, &job1)).Should(Succeed())
+			// AssertJobStatus(ctx, *job, "hello\n")
 		})
 
 	})
@@ -138,7 +151,7 @@ func AssertJobStatus(ctx context.Context, job dismasv1.Job, output string) {
 		}
 
 		if job.Status.Stdouts[Podname] != output {
-			return errors.New("Not target output")
+			return errors.New(fmt.Sprintf("Not target output with %s", job.Status.Stdouts[Podname]))
 		}
 
 		return nil

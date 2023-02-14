@@ -71,6 +71,7 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 		if apierrors.IsNotFound(err) {
 			r.cleanJobCache(req.NamespacedName)
+			lg.Info("Removed cache for deleted object " + req.Name)
 		}
 
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -85,6 +86,7 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	// 3. Execute the command
 	lg.Info("Execute command for " + req.Name)
 	stdout, stderr, cmderr := r.execute(job.Spec.Command, job.Spec.Args)
+	lg.Info(stdout)
 
 	// 4. CAS update the status
 	for retryTime := 0; retryTime <= maxRetry; retryTime++ {
