@@ -62,11 +62,11 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	logr := log.FromContext(ctx)
 	logr.Info("Receiving an event to handle for job " + req.Name)
 
-	// 1. Fetch the job
+	// 1. Fetch the job and deal with delete event
 	var job dismasv1.Job
 	err := r.Get(ctx, req.NamespacedName, &job)
 	if apierrors.IsNotFound(err) {
-		// r.cleanJobCache(req.NamespacedName)
+		r.processDelete(ctx, job)
 		logr.Info("already removed job: " + req.Name)
 
 		return reconcileDone(), nil
@@ -74,23 +74,18 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return requeueAfter(), client.IgnoreNotFound(err)
 	}
 
-	// 2. Deal with delete event
-	if !job.ObjectMeta.DeletionTimestamp.IsZero() {
-		return r.processDelete(ctx, job)
-	}
-
-	// 3. Deal with update event triggered by operator itselef
+	// 2. Deal with update event triggered by operator itselef
 	if r.isRepeatJob(Event{Command: job.Spec.Command, Args: job.Spec.Args}, req.NamespacedName) {
 		logr.Info("Refuse to exec a repeat job " + req.Name)
 		return reconcileDone(), nil
 	}
 
-	// 5. Deal with create or update event, execute the command
+	// 3. Deal with create or update event, execute the command
 	logr.Info("Execute command for " + req.Name)
 
 	stdout, stderr, cmderr := r.execute(job.Spec.Command, job.Spec.Args)
 
-	// 6. CAS update the status
+	// 4. CAS update the status
 	for retryTime := 0; retryTime <= maxRetry; retryTime++ {
 		err := r.updateJobStatus(ctx, &job, stdout, stderr, cmderr)
 
