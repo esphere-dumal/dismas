@@ -1,18 +1,12 @@
-
-# Image URL to use all building/pushing image targets
 IMG ?= esphe/dismas:master
-# ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.26.1
 
-# Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
 else
 GOBIN=$(shell go env GOBIN)
 endif
 
-# Setting SHELL to bash allows bash commands to be executed by recipes.
-# Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
@@ -64,12 +58,6 @@ docker-build: test ## Build docker image with the manager.
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
 
-##@ Deployment
-
-ifndef ignore-not-found
-  ignore-not-found = false
-endif
-
 .PHONY: helm
 helm: manifests kustomize
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
@@ -83,6 +71,12 @@ helmclean:
 	rm dismas-deploy*
 	rm deploy/crds/* 
 	rm deploy/templates/dismas.yaml
+
+##@ Deployment
+
+ifndef ignore-not-found
+  ignore-not-found = false
+endif
 
 .PHONY: install
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
