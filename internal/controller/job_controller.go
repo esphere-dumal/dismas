@@ -62,30 +62,35 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	logr := log.FromContext(ctx)
 	logr.Info("Receiving an event to handle for job " + req.Name)
 
-	// 1. Fetch the job and deal with deleted one
+	// 1. Fetch the job
 	var job dismasv1.Job
 	err := r.Get(ctx, req.NamespacedName, &job)
 	if apierrors.IsNotFound(err) {
-		r.cleanJobCache(req.NamespacedName)
-		logr.Info("Remove cache for deleted object " + req.Name)
+		// r.cleanJobCache(req.NamespacedName)
+		logr.Info("already removed job: " + req.Name)
 
 		return reconcileDone(), nil
 	} else if err != nil {
 		return requeueAfter(), client.IgnoreNotFound(err)
 	}
 
-	// 2. Check if the job is repeat
+	// 2. Deal with delete event
+	if !job.ObjectMeta.DeletionTimestamp.IsZero() {
+		return r.processDelete(ctx, job)
+	}
+
+	// 3. Deal with update event triggered by operator itselef
 	if r.isRepeatJob(Event{Command: job.Spec.Command, Args: job.Spec.Args}, req.NamespacedName) {
 		logr.Info("Refuse to exec a repeat job " + req.Name)
 		return reconcileDone(), nil
 	}
 
-	// 3. Execute the command
+	// 5. Deal with create or update event, execute the command
 	logr.Info("Execute command for " + req.Name)
 
 	stdout, stderr, cmderr := r.execute(job.Spec.Command, job.Spec.Args)
 
-	// 4. CAS update the status
+	// 6. CAS update the status
 	for retryTime := 0; retryTime <= maxRetry; retryTime++ {
 		err := r.updateJobStatus(ctx, &job, stdout, stderr, cmderr)
 
@@ -122,20 +127,16 @@ func (r *JobReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// cleanJobCache removes a deleted Job's last event tracked in cache.
-func (r *JobReconciler) cleanJobCache(namespacedname types.NamespacedName) {
-	if _, ok := r.LastEvents[namespacedname.Namespace]; !ok {
-		return
+// processDelete removes a deleted Job's last event tracked in cache.
+func (r *JobReconciler) processDelete(ctx context.Context, job dismasv1.Job) (ctrl.Result, error) {
+	if _, ok := r.LastEvents[job.Namespace]; ok {
+		delete(r.LastEvents[job.Namespace], job.Name)
 	}
 
-	delete(r.LastEvents[namespacedname.Namespace], namespacedname.Name)
+	return reconcileDone(), nil
 }
 
-/*
-isRepeatJob checks a job is the same one as last executed
-under two conditions the cache will be updated and return false
-a new job created or the command are different.
-*/
+// isRepeatJob checks a job is the same one as last executed
 func (r *JobReconciler) isRepeatJob(newEvent Event, namespacedname types.NamespacedName) bool {
 	isNamespaceExist := func() bool {
 		if _, ok := r.LastEvents[namespacedname.Namespace]; ok {
