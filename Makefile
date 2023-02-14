@@ -61,7 +61,7 @@ docker-push: ## Push docker image with the manager.
 .PHONY: helm
 helm: manifests kustomize
 	if [! -d "deploy/crd"]; then \
-		mkdir deploy/crd \
+		mkdir deploy/crd; \
 	fi
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/crd > deploy/crds/crd.yaml
