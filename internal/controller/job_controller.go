@@ -3,10 +3,8 @@ package controller
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os/exec"
 	"strings"
-	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -25,7 +23,7 @@ type Event struct {
 }
 
 // IsEqual tell wether two Event is same (Command and args).
-func (lhs Event) IsEqual(rhs Event) bool {
+func (lhs Event) isEqual(rhs Event) bool {
 	if lhs.Command != rhs.Command {
 		return false
 	}
@@ -66,21 +64,20 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	// 1. Fetch the job and deal with deleted one
 	var job dismasv1.Job
-	if err := r.Get(ctx, req.NamespacedName, &job); err != nil {
-		logr.Error(err, "Unable to fetch object")
+	err := r.Get(ctx, req.NamespacedName, &job)
+	if apierrors.IsNotFound(err) {
+		r.cleanJobCache(req.NamespacedName)
+		logr.Info("Remove cache for deleted object " + req.Name)
 
-		if apierrors.IsNotFound(err) {
-			r.cleanJobCache(req.NamespacedName)
-			logr.Info("Removed cache for deleted object " + req.Name)
-		}
-
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		return reconcileDone(), nil
+	} else if err != nil {
+		return requeueAfter(), client.IgnoreNotFound(err)
 	}
 
 	// 2. Check if the job is repeat
 	if r.isRepeatJob(Event{Command: job.Spec.Command, Args: job.Spec.Args}, req.NamespacedName) {
 		logr.Info("Refuse to exec a repeat job " + req.Name)
-		return ctrl.Result{}, nil
+		return reconcileDone(), nil
 	}
 
 	// 3. Execute the command
@@ -111,7 +108,7 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		if err := r.Get(ctx, req.NamespacedName, &job); err != nil {
 			logr.Error(err, "Unable to re-fetch object")
 
-			return ctrl.Result{}, client.IgnoreNotFound(err)
+			return requeueAfter(), client.IgnoreNotFound(err)
 		}
 	}
 
@@ -158,7 +155,7 @@ func (r *JobReconciler) isRepeatJob(newEvent Event, namespacedname types.Namespa
 
 	lastEvent, ok := r.LastEvents[namespacedname.Namespace][namespacedname.Name]
 	// There is no target name in cache or There is different between two events
-	if !ok || !lastEvent.IsEqual(newEvent) {
+	if !ok || !lastEvent.isEqual(newEvent) {
 		r.LastEvents[namespacedname.Namespace][namespacedname.Name] = newEvent
 
 		return false
@@ -213,19 +210,4 @@ func (r *JobReconciler) updateJobStatus(ctx context.Context, job *dismasv1.Job,
 	log.Log.Info("Job updated in cache, going to update CR for " + job.Name)
 
 	return r.Status().Update(ctx, job)
-}
-
-// requeueAfter creates a ctrl.Result that requeue after secs seconds
-// Default value: 3s.
-func requeueAfter(secs ...int) ctrl.Result {
-	if len(secs) > 1 {
-		panic(fmt.Errorf("invalid argument secs"))
-	}
-
-	s := 3
-	if len(secs) == 1 {
-		s = secs[0]
-	}
-
-	return ctrl.Result{RequeueAfter: time.Duration(s) * time.Second}
 }
