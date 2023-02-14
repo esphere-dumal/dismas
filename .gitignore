@@ -32,3 +32,4 @@ deploy/templates/dismas.yaml
 
 # Build
 randomSleep
+vendor/
