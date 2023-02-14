@@ -64,7 +64,7 @@ helm: manifests kustomize
 	$(KUSTOMIZE) build config/crd > deploy/crds/crd.yaml
 	$(KUSTOMIZE) build config/default > deploy/templates/dismas.yaml
 	sed -i 's/kustomize/helm/g' deploy/templates/*
-	$(HELM) package deploy
+	helm package deploy
 
 .PHONY: helmclean
 helmclean:
@@ -104,7 +104,6 @@ $(LOCALBIN):
 
 ## Tool Binaries
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
-HELM ?= $(LOCALBIN)/helm
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 
