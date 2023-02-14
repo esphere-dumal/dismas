@@ -17,20 +17,25 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	dismasv1 "dismas/api/v1"
+
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	dismasv1 "dismas/api/v1"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -46,6 +51,17 @@ func TestAPIs(t *testing.T) {
 
 	RunSpecs(t, "Controller Suite")
 }
+
+const (
+	testNamespace = "dismas-system"
+	Podname       = "default-podname"
+)
+
+const (
+	timeout  = time.Second * 60
+	duration = time.Second * 10
+	interval = time.Millisecond * 250
+)
 
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
@@ -70,6 +86,12 @@ var _ = BeforeSuite(func() {
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
+
+	err = k8sClient.Create(context.TODO(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNamespace}})
+	if errors.IsAlreadyExists(err) {
+		return
+	}
+	Expect(err).NotTo(HaveOccurred())
 
 })
 
