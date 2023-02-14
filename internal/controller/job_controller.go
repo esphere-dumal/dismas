@@ -123,13 +123,13 @@ func (r *JobReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // processDelete removes a deleted Job's last event tracked in cache.
-func (r *JobReconciler) processDelete(ctx context.Context, job dismasv1.Job) (ctrl.Result, error) {
-	if _, ok := r.LastEvents[job.Namespace]; ok {
-		log.Log.Info("deleted cache for job " + job.Name)
-		delete(r.LastEvents[job.Namespace], job.Name)
-	}
+func (r *JobReconciler) processDelete(ctx context.Context, job dismasv1.Job) {
+	log.Log.Info("delete " + job.Name)
 
-	return reconcileDone(), nil
+	if _, ok := r.LastEvents[job.Namespace]; ok {
+		delete(r.LastEvents[job.Namespace], job.Name)
+		log.Log.Info("delete cache for " + job.Name)
+	}
 }
 
 // isRepeatJob checks a job is the same one as last executed
