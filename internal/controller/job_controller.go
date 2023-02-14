@@ -18,13 +18,13 @@ import (
 	dismasv1 "dismas/api/v1"
 )
 
-// Event describes a Job
+// Event describes a Job.
 type Event struct {
 	Command string
 	Args    []string
 }
 
-// IsEqual tell wether two Event is same (Command and args)
+// IsEqual tell wether two Event is same (Command and args).
 func (lhs Event) IsEqual(rhs Event) bool {
 	if lhs.Command != rhs.Command {
 		return false
@@ -43,7 +43,7 @@ func (lhs Event) IsEqual(rhs Event) bool {
 	return true
 }
 
-// JobReconciler reconciles a Job object
+// JobReconciler reconciles a Job object.
 type JobReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -61,17 +61,17 @@ const maxRetry = 7
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	lg := log.FromContext(ctx)
-	lg.Info("Receiving an event to handle for job " + req.Name)
+	logr := log.FromContext(ctx)
+	logr.Info("Receiving an event to handle for job " + req.Name)
 
 	// 1. Fetch the job and deal with deleted one
 	var job dismasv1.Job
 	if err := r.Get(ctx, req.NamespacedName, &job); err != nil {
-		lg.Error(err, "Unable to fetch object")
+		logr.Error(err, "Unable to fetch object")
 
 		if apierrors.IsNotFound(err) {
 			r.cleanJobCache(req.NamespacedName)
-			lg.Info("Removed cache for deleted object " + req.Name)
+			logr.Info("Removed cache for deleted object " + req.Name)
 		}
 
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -79,39 +79,43 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	// 2. Check if the job is repeat
 	if r.isRepeatJob(Event{Command: job.Spec.Command, Args: job.Spec.Args}, req.NamespacedName) {
-		lg.Info("Refuse to exec a repeat job " + req.Name)
+		logr.Info("Refuse to exec a repeat job " + req.Name)
 		return ctrl.Result{}, nil
 	}
 
 	// 3. Execute the command
-	lg.Info("Execute command for " + req.Name)
+	logr.Info("Execute command for " + req.Name)
+
 	stdout, stderr, cmderr := r.execute(job.Spec.Command, job.Spec.Args)
-	lg.Info(stdout)
 
 	// 4. CAS update the status
 	for retryTime := 0; retryTime <= maxRetry; retryTime++ {
-		err := r.updateJobStatus(&job, stdout, stderr, cmderr, ctx)
+		err := r.updateJobStatus(ctx, &job, stdout, stderr, cmderr)
 
 		// Successfully updated status
 		if err == nil {
-			lg.Info("Updated job status for " + req.Name)
+			logr.Info("Updated job status for " + req.Name)
 			return ctrl.Result{}, nil
 		}
 
 		// Unexpected errors
 		if !apierrors.IsConflict(err) {
-			lg.Error(err, "Updating occured a non-conflict error for job "+req.Name)
+			logr.Error(err, "Updating occurred a non-conflict error for job "+req.Name)
+
 			return ctrl.Result{}, err
 		}
 
 		// Conflict, retry updating
-		lg.Info("Updating but occured confilct, going to retry for " + req.Name)
+		logr.Info("Updating but occurred conflict, going to retry for " + req.Name)
+
 		if err := r.Get(ctx, req.NamespacedName, &job); err != nil {
-			lg.Error(err, "Unable to re-fetch object")
+			logr.Error(err, "Unable to re-fetch object")
+
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 	}
-	return requeueAfter(), errors.New("too mamy confilct when retring updating")
+
+	return requeueAfter(), errors.New("too many conflicts when retring updating")
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -121,7 +125,7 @@ func (r *JobReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// cleanJobCache removes a deleted Job's last event tracked in cache
+// cleanJobCache removes a deleted Job's last event tracked in cache.
 func (r *JobReconciler) cleanJobCache(namespacedname types.NamespacedName) {
 	if _, ok := r.LastEvents[namespacedname.Namespace]; !ok {
 		return
@@ -133,13 +137,14 @@ func (r *JobReconciler) cleanJobCache(namespacedname types.NamespacedName) {
 /*
 isRepeatJob checks a job is the same one as last executed
 under two conditions the cache will be updated and return false
-a new job created or the command are different
+a new job created or the command are different.
 */
 func (r *JobReconciler) isRepeatJob(newEvent Event, namespacedname types.NamespacedName) bool {
 	isNamespaceExist := func() bool {
 		if _, ok := r.LastEvents[namespacedname.Namespace]; ok {
 			return true
 		}
+
 		return false
 	}
 
@@ -147,6 +152,7 @@ func (r *JobReconciler) isRepeatJob(newEvent Event, namespacedname types.Namespa
 	if !isNamespaceExist() {
 		r.LastEvents[namespacedname.Namespace] = make(map[string]Event)
 		r.LastEvents[namespacedname.Namespace][namespacedname.Name] = newEvent
+
 		return false
 	}
 
@@ -154,13 +160,14 @@ func (r *JobReconciler) isRepeatJob(newEvent Event, namespacedname types.Namespa
 	// There is no target name in cache or There is different between two events
 	if !ok || !lastEvent.IsEqual(newEvent) {
 		r.LastEvents[namespacedname.Namespace][namespacedname.Name] = newEvent
+
 		return false
 	}
 
 	return true
 }
 
-// execute run a command with its args
+// execute run a command with its args.
 func (r *JobReconciler) execute(command string, args []string) (string, string, error) {
 	cmd := exec.Command(command, args...)
 
@@ -169,29 +176,28 @@ func (r *JobReconciler) execute(command string, args []string) (string, string, 
 	cmd.Stderr = &cmderr
 
 	err := cmd.Run()
+
 	return output.String(), cmderr.String(), err
 }
 
-// checkJobMapIsNil make sures maps in Job is initialized
+// checkJobMapIsNil make sures maps in Job is initialized.
 func checkJobMapIsNotNil(job *dismasv1.Job) {
 	if job.Status.Stdouts == nil {
-		log.Log.Info("Initalized job.Status.Stdouts for " + job.Name)
 		job.Status.Stdouts = make(map[string]string)
 	}
 
 	if job.Status.Stderrs == nil {
-		log.Log.Info("Initalized job.Status.Stderrs " + job.Name)
 		job.Status.Stderrs = make(map[string]string)
 	}
 
 	if job.Status.Errors == nil {
-		log.Log.Info("Initalized job.Status.Errors " + job.Name)
 		job.Status.Errors = make(map[string]string)
 	}
 }
 
-// updateJobStatus checks job and updates datas
-func (r *JobReconciler) updateJobStatus(job *dismasv1.Job, stdout string, stderr string, err error, ctx context.Context) error {
+// updateJobStatus checks job and updates datas.
+func (r *JobReconciler) updateJobStatus(ctx context.Context, job *dismasv1.Job,
+	stdout string, stderr string, err error) error {
 	checkJobMapIsNotNil(job)
 
 	job.Status.Stdouts[r.Podname] = stdout
@@ -201,14 +207,16 @@ func (r *JobReconciler) updateJobStatus(job *dismasv1.Job, stdout string, stderr
 	if err != nil {
 		errorMessage = err.Error()
 	}
+
 	job.Status.Errors[r.Podname] = errorMessage
 
 	log.Log.Info("Job updated in cache, going to update CR for " + job.Name)
+
 	return r.Status().Update(ctx, job)
 }
 
 // requeueAfter creates a ctrl.Result that requeue after secs seconds
-// Default value: 3s
+// Default value: 3s.
 func requeueAfter(secs ...int) ctrl.Result {
 	if len(secs) > 1 {
 		panic(fmt.Errorf("invalid argument secs"))

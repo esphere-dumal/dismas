@@ -119,19 +119,6 @@ var _ = Describe("Job controller", func() {
 			}
 			Expect(k8sClient.Create(ctx, job)).Should(Succeed())
 			AssertJobStatus(ctx, *job, "test\n")
-
-			// By("Update job command")
-			// var job1 dismasv1.Job
-			// Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: jobName}, &job1)).NotTo(HaveOccurred())
-			// job1.Spec.Args = []string{"hello"}
-			// Expect(k8sClient.Status().Update(ctx, &job1)).NotTo(HaveOccurred())
-			// AssertJobStatus(ctx, *job, "hello\n")
-
-			// By("Delete job and Re-create job")
-			// Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: testNamespace, Name: jobName}, &job1)).NotTo(HaveOccurred())
-			// Expect(k8sClient.Delete(ctx, &job1)).NotTo(HaveOccurred())
-			// Expect(k8sClient.Create(ctx, &job1)).Should(Succeed())
-			// AssertJobStatus(ctx, *job, "hello\n")
 		})
 
 	})
@@ -147,11 +134,11 @@ func AssertJobStatus(ctx context.Context, job dismasv1.Job, output string) {
 		}
 
 		if _, ok := job.Status.Stdouts[Podname]; !ok {
-			return errors.New("Not updated yet")
+			return errors.New("not updated yet")
 		}
 
 		if job.Status.Stdouts[Podname] != output {
-			return errors.New(fmt.Sprintf("Not target output with %s", job.Status.Stdouts[Podname]))
+			return errors.New("not target output")
 		}
 
 		return nil

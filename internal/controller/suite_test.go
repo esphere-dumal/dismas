@@ -59,7 +59,6 @@ const (
 
 const (
 	timeout  = time.Second * 60
-	duration = time.Second * 10
 	interval = time.Millisecond * 250
 )
 
