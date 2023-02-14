@@ -66,7 +66,7 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	var job dismasv1.Job
 	err := r.Get(ctx, req.NamespacedName, &job)
 	if apierrors.IsNotFound(err) {
-		r.processDelete(ctx, job)
+		r.processDelete(ctx, req.Namespace, req.Name)
 		logr.Info("already removed job: " + req.Name)
 
 		return reconcileDone(), nil
@@ -123,12 +123,12 @@ func (r *JobReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // processDelete removes a deleted Job's last event tracked in cache.
-func (r *JobReconciler) processDelete(ctx context.Context, job dismasv1.Job) {
-	log.Log.Info("delete " + job.Name)
+func (r *JobReconciler) processDelete(ctx context.Context, namespace string, name string) {
+	log.Log.Info("delete " + name)
 
-	if _, ok := r.LastEvents[job.Namespace]; ok {
-		delete(r.LastEvents[job.Namespace], job.Name)
-		log.Log.Info("delete cache for " + job.Name)
+	if _, ok := r.LastEvents[namespace]; ok {
+		delete(r.LastEvents[namespace], name)
+		log.Log.Info("delete cache for " + name)
 	}
 }
 
