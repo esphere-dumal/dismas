@@ -46,6 +46,7 @@ type JobReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
+	// TODO: using a map[string]Event to replace map[string]map[string]Event
 	LastEvents map[string]map[string]Event
 	Podname    string
 }
@@ -174,21 +175,6 @@ func (r *JobReconciler) execute(command string, args []string) (string, string, 
 	return output.String(), cmderr.String(), err
 }
 
-// checkJobMapIsNil make sures maps in Job is initialized.
-func checkJobMapIsNotNil(job *dismasv1.Job) {
-	if job.Status.Stdouts == nil {
-		job.Status.Stdouts = make(map[string]string)
-	}
-
-	if job.Status.Stderrs == nil {
-		job.Status.Stderrs = make(map[string]string)
-	}
-
-	if job.Status.Errors == nil {
-		job.Status.Errors = make(map[string]string)
-	}
-}
-
 // updateJobStatus checks job and updates datas.
 func (r *JobReconciler) updateJobStatus(ctx context.Context, job *dismasv1.Job,
 	stdout string, stderr string, err error) error {
@@ -207,4 +193,19 @@ func (r *JobReconciler) updateJobStatus(ctx context.Context, job *dismasv1.Job,
 	log.Log.Info("Job updated in cache, going to update CR for " + job.Name)
 
 	return r.Status().Update(ctx, job)
+}
+
+// checkJobMapIsNil make sures maps in Job is initialized.
+func checkJobMapIsNotNil(job *dismasv1.Job) {
+	if job.Status.Stdouts == nil {
+		job.Status.Stdouts = make(map[string]string)
+	}
+
+	if job.Status.Stderrs == nil {
+		job.Status.Stderrs = make(map[string]string)
+	}
+
+	if job.Status.Errors == nil {
+		job.Status.Errors = make(map[string]string)
+	}
 }
