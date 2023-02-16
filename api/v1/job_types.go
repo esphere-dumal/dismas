@@ -4,6 +4,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type output struct {
+	// Stdouts record all outputs with key refers to pod, value refers to output
+	Stdouts map[string]string `json:"stdouts,omitempty"`
+	// Stderrs records all error messages outputs with key refers to pod, value refers to error messages
+	Stderrs map[string]string `json:"stderrs,omitempty"`
+	// Errors records error when execute command in containers
+	Errors map[string]string `json:"errors,omitempty"`
+}
+
 // JobSpec defines the desired state of Job
 type JobSpec struct {
 	// +kubebuilder:validation:Required
@@ -14,13 +23,7 @@ type JobSpec struct {
 
 // JobStatus defines the observed state of Job
 type JobStatus struct {
-	// TODO: using a struct 
-	// Stdouts record all outputs with key refers to pod, value refers to output
-	Stdouts map[string]string `json:"stdouts,omitempty"`
-	// Stderrs records all error messages outputs with key refers to pod, value refers to error messages
-	Stderrs map[string]string `json:"stderrs,omitempty"`
-	// Errors records error when execute command in containers
-	Errors map[string]string `json:"errors,omitempty"`
+	output `json:"output,omitempty"`
 }
 
 //+kubebuilder:object:root=true

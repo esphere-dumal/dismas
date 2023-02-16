@@ -2,7 +2,7 @@ package controller
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"os/exec"
 	"strings"
 
@@ -46,9 +46,8 @@ type JobReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	// TODO: using a map[string]Event to replace map[string]map[string]Event
-	// TODO: map key
-	LastEvents map[string]map[string]Event
+	// LastEvents keeps track of namespace-name => lastevent
+	LastEvents map[string]Event
 	Podname    string
 }
 
@@ -78,7 +77,8 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	// 2. Deal with update event triggered by operator itselef
-	if r.isRepeatJob(Event{Command: job.Spec.Command, Args: job.Spec.Args}, req.NamespacedName) {
+	newEvent := Event{Command: job.Spec.Command, Args: job.Spec.Args}
+	if !r.isRepeatEvent(newEvent, req.NamespacedName) {
 		logr.Info("Refuse to exec a repeat job " + req.Name)
 		return reconcileDone(), nil
 	}
@@ -89,35 +89,7 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	stdout, stderr, cmderr := r.execute(job.Spec.Command, job.Spec.Args)
 
 	// 4. CAS update the status
-	// TODO: use a function here
-	for retryTime := 0; retryTime <= maxRetry; retryTime++ {
-		err := r.updateJobStatus(ctx, &job, stdout, stderr, cmderr)
-
-		// Successfully updated status
-		if err == nil {
-			logr.Info("Updated job status for " + req.Name)
-			return ctrl.Result{}, nil
-		}
-
-		// Unexpected errors
-		if !apierrors.IsConflict(err) {
-			logr.Error(err, "Updating occurred a non-conflict error for job "+req.Name)
-
-			return ctrl.Result{}, err
-		}
-
-		// Conflict, retry updating
-		// TODO: warning or others, log level
-		logr.Info("Updating but occurred conflict, going to retry for " + req.Name)
-
-		if err := r.Get(ctx, req.NamespacedName, &job); err != nil {
-			logr.Error(err, "Unable to re-fetch object")
-
-			return requeueAfter(), client.IgnoreNotFound(err)
-		}
-	}
-
-	return requeueAfter(), errors.New("too many conflicts when retring updating")
+	return r.tryUpdateStatus(ctx, job, stdout, stderr, cmderr, newEvent)
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -131,33 +103,20 @@ func (r *JobReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *JobReconciler) processDelete(ctx context.Context, namespace string, name string) {
 	log.Log.Info("delete " + name)
 
-	if _, ok := r.LastEvents[namespace]; ok {
-		delete(r.LastEvents[namespace], name)
-		log.Log.Info("delete cache for " + name)
+	key := NameToKey(namespace, name)
+	if _, ok := r.LastEvents[key]; ok {
+		delete(r.LastEvents, key)
+		log.Log.Info("delete cache for ", key)
 	}
 }
 
-// isRepeatJob checks a job is the same one as last executed
-// TODO: better func behaviour
-func (r *JobReconciler) isRepeatJob(newEvent Event, namespacedname types.NamespacedName) bool {
-	// TODO: better judgement
-
-	// ensure not a nil map
-	// removed an exit
-	namespaceMap, ok := r.LastEvents[namespacedname.Namespace]
-	if !ok {
-		namespaceMap = make(map[string]Event)
-		namespaceMap[namespacedname.Name] = newEvent
-
-		r.LastEvents[namespacedname.Name] = namespaceMap
-	}
-
-	// There is no target name in cache or There is different between two events
-	lastEvent, ok := namespaceMap[namespacedname.Name]
-	if !ok || !lastEvent.isEqual(newEvent) {
-		namespaceMap[namespacedname.Name] = newEvent
-
-		return false
+// updateIfNotRepeatedEvent return false if is a repeated event
+func (r *JobReconciler) isRepeatEvent(newEvent Event, namespacedname types.NamespacedName) bool {
+	key := NameToKey(namespacedname.Namespace, namespacedname.Name)
+	if lastEvent, ok := r.LastEvents[key]; ok {
+		if lastEvent.isEqual(newEvent) {
+			return false
+		}
 	}
 
 	return true
@@ -184,16 +143,40 @@ func (r *JobReconciler) updateJobStatus(ctx context.Context, job *dismasv1.Job,
 	job.Status.Stdouts[r.Podname] = stdout
 	job.Status.Stderrs[r.Podname] = stderr
 
-	errorMessage := "No error when executing the command + " + job.Name
 	if err != nil {
-		errorMessage = err.Error()
+		job.Status.Errors[r.Podname] = err.Error()
 	}
 
-	job.Status.Errors[r.Podname] = errorMessage
-
-	log.Log.Info("Job updated in cache, going to update CR for " + job.Name)
-
 	return r.Status().Update(ctx, job)
+}
+
+func (r *JobReconciler) tryUpdateStatus(ctx context.Context, job dismasv1.Job,
+	stdout string, stderr string, cmderr error, event Event) (ctrl.Result, error) {
+	for retryTime := 0; retryTime <= maxRetry; retryTime++ {
+		err := r.updateJobStatus(ctx, &job, stdout, stderr, cmderr)
+
+		// Successfully updated status
+		if err == nil {
+			key := NameToKey(job.Namespace, job.Name)
+			r.LastEvents[key] = event
+			return reconcileDone(), nil
+		}
+
+		// Unexpected errors
+		if !apierrors.IsConflict(err) {
+			return reconcileDone(), err
+		}
+
+		// Conflict, retry updating
+		if err := r.Get(ctx, types.NamespacedName{Namespace: job.Namespace, Name: job.Name}, &job); err != nil {
+			return requeueAfter(), client.IgnoreNotFound(err)
+		}
+	}
+	return reconcileDone(), nil
+}
+
+func NameToKey(namespace string, name string) string {
+	return fmt.Sprintf("%s-%s", namespace, name)
 }
 
 // checkJobMapIsNil make sures maps in Job is initialized.
