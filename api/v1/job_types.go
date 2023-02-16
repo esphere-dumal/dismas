@@ -14,6 +14,7 @@ type JobSpec struct {
 
 // JobStatus defines the observed state of Job
 type JobStatus struct {
+	// TODO: using a struct 
 	// Stdouts record all outputs with key refers to pod, value refers to output
 	Stdouts map[string]string `json:"stdouts,omitempty"`
 	// Stderrs records all error messages outputs with key refers to pod, value refers to error messages

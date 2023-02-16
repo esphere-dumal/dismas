@@ -47,6 +47,7 @@ type JobReconciler struct {
 	Scheme *runtime.Scheme
 
 	// TODO: using a map[string]Event to replace map[string]map[string]Event
+	// TODO: map key
 	LastEvents map[string]map[string]Event
 	Podname    string
 }
@@ -61,6 +62,7 @@ const maxRetry = 7
 // move the current state of the cluster closer to the desired state.
 func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logr := log.FromContext(ctx)
+	// TODO: only in debug
 	logr.Info("Receiving an event to handle for job " + req.Name)
 
 	// 1. Fetch the job and deal with delete event
@@ -87,6 +89,7 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	stdout, stderr, cmderr := r.execute(job.Spec.Command, job.Spec.Args)
 
 	// 4. CAS update the status
+	// TODO: use a function here
 	for retryTime := 0; retryTime <= maxRetry; retryTime++ {
 		err := r.updateJobStatus(ctx, &job, stdout, stderr, cmderr)
 
@@ -104,6 +107,7 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 
 		// Conflict, retry updating
+		// TODO: warning or others, log level
 		logr.Info("Updating but occurred conflict, going to retry for " + req.Name)
 
 		if err := r.Get(ctx, req.NamespacedName, &job); err != nil {
@@ -134,27 +138,24 @@ func (r *JobReconciler) processDelete(ctx context.Context, namespace string, nam
 }
 
 // isRepeatJob checks a job is the same one as last executed
+// TODO: better func behaviour
 func (r *JobReconciler) isRepeatJob(newEvent Event, namespacedname types.NamespacedName) bool {
-	isNamespaceExist := func() bool {
-		if _, ok := r.LastEvents[namespacedname.Namespace]; ok {
-			return true
-		}
+	// TODO: better judgement
 
-		return false
+	// ensure not a nil map
+	// removed an exit
+	namespaceMap, ok := r.LastEvents[namespacedname.Namespace]
+	if !ok {
+		namespaceMap = make(map[string]Event)
+		namespaceMap[namespacedname.Name] = newEvent
+
+		r.LastEvents[namespacedname.Name] = namespaceMap
 	}
 
-	// There is no target namespace in cache -> a create event
-	if !isNamespaceExist() {
-		r.LastEvents[namespacedname.Namespace] = make(map[string]Event)
-		r.LastEvents[namespacedname.Namespace][namespacedname.Name] = newEvent
-
-		return false
-	}
-
-	lastEvent, ok := r.LastEvents[namespacedname.Namespace][namespacedname.Name]
 	// There is no target name in cache or There is different between two events
+	lastEvent, ok := namespaceMap[namespacedname.Name]
 	if !ok || !lastEvent.isEqual(newEvent) {
-		r.LastEvents[namespacedname.Namespace][namespacedname.Name] = newEvent
+		namespaceMap[namespacedname.Name] = newEvent
 
 		return false
 	}
