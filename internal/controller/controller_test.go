@@ -58,7 +58,7 @@ var _ = Describe("Job controller", func() {
 			err = (&JobReconciler{
 				Client:     k8sManager.GetClient(),
 				Scheme:     k8sManager.GetScheme(),
-				LastEvents: make(map[string]map[string]Event),
+				LastEvents: make(map[string]Event),
 				Podname:    Podname,
 			}).SetupWithManager(k8sManager)
 			Expect(err).NotTo(HaveOccurred())

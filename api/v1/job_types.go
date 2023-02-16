@@ -4,7 +4,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type output struct {
+type Output struct {
 	// Stdouts record all outputs with key refers to pod, value refers to output
 	Stdouts map[string]string `json:"stdouts,omitempty"`
 	// Stderrs records all error messages outputs with key refers to pod, value refers to error messages
@@ -23,7 +23,7 @@ type JobSpec struct {
 
 // JobStatus defines the observed state of Job
 type JobStatus struct {
-	output `json:"output,omitempty"`
+	Output `json:"output,omitempty"`
 }
 
 //+kubebuilder:object:root=true
